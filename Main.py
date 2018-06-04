@@ -41,7 +41,7 @@ for num in range(0, 50):
         if(random.randint(0, 1) == 0):
             cloudlist.append([random.randint(0, 2), num * 60, 30 + random.randint(0, 100)])
         if(random.randint(0, 1) == 0):
-            hillslist.append([random.randint(0, 4), num * 60, 192])
+            hillslist.append([random.randint(0, 4), num * 60, 224])
             if(hillslist[-1][0] == 0):
                 hillslist[-1][2] -= 16
             elif hillslist[-1][0] != 1:
@@ -52,7 +52,7 @@ class Goomba:
         self.xblocks = xblocks
         self.xPos = xblocks * 16
         self.layer = ylayer
-        self.yPos = 192 - ylayer * 16
+        self.yPos = 224 - ylayer * 16
         self.currSprite = 0
         self.vel = -.3
         self.spriteChange = 0
@@ -79,22 +79,34 @@ class Goomba:
         if(self.deathCount != 0):
                 screen.blit(goomsprites[self.currSprite], [self.xPos - offset, self.yPos])
 
-goom1 = Goomba(15, 0)
+goom1 = Goomba(15, 2)
 
 class blockLayer:
-    def __init__(self, xList, y):
+    def __init__(self, xList, y, flip = False):
         self.ylayer = y
-        self.yPos = 192 - self.ylayer*16
+        self.yPos = 224 - self.ylayer*16
         self.xList = []
-        for x in xList:
-            self.xList.append(x * 16)
+        self.sprite = block
+        if(self.ylayer < 2):
+            self.sprite = ground
+        if(not flip):
+            for x in xList:
+                self.xList.append(x * 16)
+        else:
+            for x in range(0, 40):
+                self.xList.append(x * 16)
+            for x in xList:
+                self.xList.remove(x * 16)
     def display(self, offset):
         for x in self.xList:
-            screen.blit(block, [x - offset, self.yPos])
+            screen.blit(self.sprite, [x - offset, self.yPos])
 layers = []
-xBlocks = [[7, 8, 9, 10, 11], [8, 9, 10], [9]]
-for num in range(0, 3):
-    layers.append(blockLayer(xBlocks[num], num))
+xBlocks = [[-1], [-1], [7, 8, 9, 10, 11], [8, 9, 10], [9], [], [], [], []]
+for num in range(0, 9):
+    if(len(xBlocks[num]) == 0 or xBlocks[num][0] != -1):
+        layers.append(blockLayer(xBlocks[num], num))
+    else:
+        layers.append(blockLayer(xBlocks[num][1:], num, True))
 
 while running:
     screen.fill(0)
@@ -105,9 +117,6 @@ while running:
         screen.blit(clouds[cloud[0]], [cloud[1] - movementOffset / 1.5, cloud[2]])
     for hill in hillslist:
         screen.blit(hills[hill[0]], [hill[1] - movementOffset, hill[2]])
-    for num in range(0, 200):
-        screen.blit(ground, [num * 16 - movementOffset, 208])
-        screen.blit(ground, [num * 16 - movementOffset, 224])
 
     if(not marDead and marDown and goom1.deathCount < 0 and goom1 and abs(goom1.xPos - movementOffset - playerpos[0]) < 16 and goom1.yPos - playerpos[1] < 16):
         goom1.die()
@@ -123,8 +132,7 @@ while running:
         playersprite = marsprites[5]
         if(playervel[1] == 0):
              pygame.time.delay(500)
-
-    marLayer = int((playerpos[1] - 192) / 16)
+    marLayer = int((224 - playerpos[1]) / 16)
     screen.blit(playersprite, playerpos)
     
     goom1.move(layers[goom1.layer], movementOffset)
@@ -189,7 +197,7 @@ while running:
             if(playerpos[0] <= pos + 16 - movementOffset and playervel[0] < 0):
                 playervel[0] = 0
                 playerpos[0] = pos- movementOffset + 16
-    if(playerpos[0] >= 192 and playervel[0] > 0):
+    if(playerpos[0] >= 224 and playervel[0] > 0):
         movementOffset += playervel[0]
     elif(playerpos[0] < 0):
         playerpos[0] = 0
@@ -224,33 +232,39 @@ while running:
                 playersprite = marsprites[1]
             changestate = 0
 
-    if(playerkeys[0] or marDead):
+    if(not marDead and playerkeys[0]):
         if(not marUp and not marDown):
-            marUp = True;
+            marUp = True
+            jumpDist = 0
+            playervel[1] = 1.5
+        if(marUp and abs(playervel[1]) <= .03):
+            marUp = False
+            marDown = True
+    elif(marUp):
+        marUp = False
+        marDown = True
+    playerpos[1] = 224 - marLayer * 16
+    if (abs(layers[marLayer - 1].yPos - playerpos[1]) <= 1):
+        for pos in layers[marLayer - 1].xList:
+            if(abs(playerpos[0] - pos + movementOffset) <= 16):
+                onBlock = True
+                playerpos[1] = 224 - marLayer * 16
+                marDown = False
+                playervel[1] = 0
+                break
+            else:
+                playervel[1] = 0
+                onBlock = False
+                marDown = True
+    if(marDead):
+        if(not marUp and not marDown):
+            marUp = True
             playervel[1] = 1.5
         if(marUp and jumpDist > jumpHeight):
             marUp = False
             marDown = True
-    else:
-        if(marUp):
-            marUp = False
-            marDown = True
-    if(not marDead and marDown and jumpDist > 0 and playervel[1] > -4):
-        playervel[1] -= .07
-    if(marDead):
-        playervel[1] -= .03
-    if(layers[max(marLayer - 1, 0)].yPos - playerpos[1] <= 2):
-        for pos in layers[max(marLayer - 1, 0)].xList:
-            if(abs(playerpos[0] - pos + movementOffset) <= 16):
-                playerpos[1] = 192 - marLayer * 16
-                marDown = False
-                jumpDist = 0
-                playervel[1] = 0
-    if(not marDead and marDown and jumpDist <= 0):
-        playerpos[1] = startPos
-        marDown = False
-        jumpDist = 0
-        playervel[1] = 0
+    elif(not onBlock and playervel[1] > -2):
+        playervel[1] -= .05
             
 
     playerpos[1] -= playervel[1]
